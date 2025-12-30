@@ -13,6 +13,13 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
+DISCORD_ROLE_ID = os.getenv("DISCORD_ROLE_ID")  # Optional: Role ID to mention
+
+# Determine the mention string to use
+if DISCORD_ROLE_ID:
+    DISCORD_MENTION = f"<@&{DISCORD_ROLE_ID}>"  # Proper Discord role mention format
+else:
+    DISCORD_MENTION = "@everyone"  # Default to @everyone if no role specified
 
 # Validate that all required environment variables are set
 if not TELEGRAM_BOT_TOKEN:
@@ -39,7 +46,7 @@ async def on_ready():
     print(f'✅ Ready to relay messages!')
 
 async def send_to_discord(message_text, username, chat_name=None, file_path=None, file_name=None):
-    """Send message to Discord with @everyone mention and optional file attachment"""
+    """Send message to Discord with configurable mention and optional file attachment"""
     print(f"🔄 send_to_discord called with: username={username}, chat_name={chat_name}, file={file_name}")
     print(f"🔍 Discord bot ready: {discord_bot.is_ready()}")
 
@@ -47,9 +54,9 @@ async def send_to_discord(message_text, username, chat_name=None, file_path=None
 
     if channel:
         if chat_name:
-            content = f"@everyone **[{chat_name}]** {username}: {message_text}" if message_text else f"@everyone **[{chat_name}]** {username}"
+            content = f"{DISCORD_MENTION} **[{chat_name}]** {username}: {message_text}" if message_text else f"{DISCORD_MENTION} **[{chat_name}]** {username}"
         else:
-            content = f"@everyone {username}: {message_text}" if message_text else f"@everyone {username}"
+            content = f"{DISCORD_MENTION} {username}: {message_text}" if message_text else f"{DISCORD_MENTION} {username}"
 
         try:
             if file_path:

@@ -5,8 +5,10 @@ A Python bot that relays messages from Telegram groups/channels to a Discord cha
 ## Features
 
 - 📨 Automatically forwards all messages from Telegram to Discord
+- 📷 Supports photos, videos, and documents with captions
+- 🔗 Preserves links in text and media captions
 - 👥 Preserves sender information (username and chat name)
-- 🔔 Includes @everyone mentions in Discord for important notifications
+- 🔔 Customizable role mentions using Role ID (defaults to @everyone)
 - 🔄 Real-time message relay
 - 🛡️ Environment variable configuration for security
 
@@ -39,6 +41,7 @@ Messages are formatted as: `@everyone **[Telegram Group Name]** Username: Messag
    TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
    DISCORD_BOT_TOKEN=your_discord_bot_token_here
    DISCORD_CHANNEL_ID=your_discord_channel_id_here
+   # DISCORD_ROLE_ID=your_role_id_here  # Optional: defaults to @everyone
    ```
 
 ## Configuration Setup
@@ -78,6 +81,29 @@ TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 DISCORD_BOT_TOKEN=MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.GaBcDe.FgHiJkLmNoPqRsTuVwXyZ
 DISCORD_CHANNEL_ID=123456789012345678
 ```
+
+#### Optional: Customize Discord Role Mention
+
+By default, the bot uses `@everyone` to mention all users. You can customize this to mention a specific role using its Role ID:
+
+**How to get a Role ID:**
+1. Enable Developer Mode in Discord (User Settings > Advanced > Developer Mode)
+2. Go to Server Settings > Roles
+3. Right-click on the role you want to mention (e.g., "groomsmen")
+4. Click "Copy Role ID"
+
+**Add to your `.env` file:**
+```env
+# To mention a specific role by ID
+DISCORD_ROLE_ID=1455619074427064380
+
+# To use default @everyone, simply don't set DISCORD_ROLE_ID or comment it out:
+# DISCORD_ROLE_ID=
+```
+
+**Example:** If you set `DISCORD_ROLE_ID=1455619074427064380`, messages will appear as:
+- `<@&1455619074427064380> **[Telegram Group]** Username: Message text`
+- This will properly ping everyone with that role in Discord!
 
 ## Usage
 
