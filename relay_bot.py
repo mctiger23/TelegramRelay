@@ -1,4 +1,5 @@
 import os
+import tempfile
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 import discord
@@ -62,30 +63,88 @@ async def send_to_discord(message_text, username, chat_name=None):
 
 # Telegram Bot Setup
 async def handle_telegram_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle incoming Telegram messages"""
+    """Handle incoming Telegram messages including text, photos, videos, and documents"""
     print(f"🔔 handle_telegram_message triggered!")
     print(f"📋 Update type: {type(update)}")
     print(f"📋 Has message: {update.message is not None}")
 
     if update.message:
+        message = update.message
         print(f"📋 Message details:")
-        print(f"   - Chat type: {update.message.chat.type}")
-        print(f"   - Chat ID: {update.message.chat.id}")
-        print(f"   - Chat title: {update.message.chat.title}")
-        print(f"   - Has text: {update.message.text is not None}")
+        print(f"   - Chat type: {message.chat.type}")
+        print(f"   - Chat ID: {message.chat.id}")
+        print(f"   - Chat title: {message.chat.title}")
+        print(f"   - Has text: {message.text is not None}")
+        print(f"   - Has photo: {message.photo is not None and len(message.photo) > 0 if message.photo else False}")
+        print(f"   - Has video: {message.video is not None}")
+        print(f"   - Has document: {message.document is not None}")
 
-        if update.message.text:
-            message_text = update.message.text
-            user = update.message.from_user
-            username = user.first_name or user.username or "Unknown"
-            chat_name = update.message.chat.title if update.message.chat.title else None
+        user = message.from_user
+        username = user.first_name or user.username or "Unknown"
+        chat_name = message.chat.title if message.chat.title else None
 
-            print(f"📨 Received from Telegram [{chat_name}] {username}: {message_text[:50]}...")
+        # Get caption or text
+        message_text = message.caption if message.caption else message.text
+
+        file_path = None
+        file_name = None
+
+        # Handle different message types
+        try:
+            # Handle photos
+            if message.photo:
+                print(f"📷 Processing photo message...")
+                # Get the largest photo size
+                photo = message.photo[-1]
+                file = await context.bot.get_file(photo.file_id)
+                file_name = f"photo_{photo.file_id}.jpg"
+                file_path = os.path.join(tempfile.gettempdir(), file_name)
+                await file.download_to_drive(file_path)
+                print(f"📥 Downloaded photo: {file_name}")
+
+            # Handle videos
+            elif message.video:
+                print(f"🎥 Processing video message...")
+                video = message.video
+                file = await context.bot.get_file(video.file_id)
+                file_name = video.file_name or f"video_{video.file_id}.mp4"
+                file_path = os.path.join(tempfile.gettempdir(), file_name)
+                await file.download_to_drive(file_path)
+                print(f"📥 Downloaded video: {file_name}")
+
+            # Handle documents
+            elif message.document:
+                print(f"📄 Processing document message...")
+                document = message.document
+                file = await context.bot.get_file(document.file_id)
+                file_name = document.file_name or f"document_{document.file_id}"
+                file_path = os.path.join(tempfile.gettempdir(), file_name)
+                await file.download_to_drive(file_path)
+                print(f"📥 Downloaded document: {file_name}")
+
+            # Handle text-only messages
+            elif message.text:
+                print(f"💬 Processing text message...")
+
+            else:
+                print(f"⚠️ Message type not supported (might be sticker, audio, etc.)")
+                return
 
             # Send to Discord
-            await send_to_discord(message_text, username, chat_name)
-        else:
-            print(f"⚠️ Message has no text content")
+            if message_text or file_path:
+                print(f"📨 Received from Telegram [{chat_name}] {username}: {message_text[:50] if message_text else '[Media]'}...")
+                await send_to_discord(message_text or "", username, chat_name, file_path, file_name)
+            else:
+                print(f"⚠️ No content to relay")
+
+        except Exception as e:
+            print(f"❌ Error processing message: {e}")
+            # Clean up file if download succeeded but processing failed
+            if file_path and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
     else:
         print(f"⚠️ Update has no message")
 
