@@ -127,6 +127,65 @@ Press Ctrl+C to stop
 
 To stop the bot, press `Ctrl+C`.
 
+## Deploying to Railway.app
+
+Railway.app provides free hosting for bots. Follow these steps to deploy:
+
+### 1. Prepare Your Repository
+
+Ensure your repository has these files:
+- `relay_bot.py` - Your bot script
+- `requirements.txt` - Python dependencies
+- `Procfile` - Tells Railway how to run your bot
+- `runtime.txt` - Specifies Python version
+
+### 2. Deploy to Railway
+
+1. Go to [Railway.app](https://railway.app) and sign in with GitHub
+2. Click "New Project" > "Deploy from GitHub repo"
+3. Select your `telegram-discord-relay` repository
+4. Railway will automatically detect it's a Python project
+
+### 3. Configure Environment Variables
+
+In Railway dashboard:
+1. Go to your project > "Variables" tab
+2. Add the following environment variables:
+
+```
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+DISCORD_BOT_TOKEN=your_discord_bot_token_here
+DISCORD_CHANNEL_ID=your_discord_channel_id_here
+DISCORD_ROLE_ID=your_role_id_here
+```
+
+**Important:** Do NOT include quotes around the values.
+
+### 4. Deploy
+
+1. Railway will automatically deploy your bot
+2. Check the "Deployments" tab to see logs
+3. You should see the same startup messages as when running locally
+
+### Notes for Railway Deployment
+
+- **No .env file needed** - Railway uses environment variables directly
+- **Always-on**: Railway keeps your bot running 24/7
+- **Logs**: View real-time logs in the Railway dashboard
+- **Free tier**: Includes 500 hours/month (enough for one bot running continuously)
+- **Automatic redeploys**: Push to GitHub to automatically redeploy
+
+### Troubleshooting Railway Deployment
+
+**Bot not starting:**
+- Check logs in Railway dashboard for error messages
+- Verify all environment variables are set correctly
+- Ensure `Procfile` contains: `worker: python relay_bot.py`
+
+**File download errors:**
+- Railway has `/tmp` directory that works for temporary files
+- The bot uses `tempfile.gettempdir()` which works on Railway's Linux servers
+
 ## Troubleshooting
 
 ### Bot doesn't relay messages

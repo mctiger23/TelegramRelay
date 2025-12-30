@@ -1,4 +1,5 @@
 import os
+import tempfile
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 import discord
@@ -12,14 +13,8 @@ load_dotenv()
 # Configuration - Load from environment variables
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
+DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID")
 DISCORD_ROLE_ID = os.getenv("DISCORD_ROLE_ID")  # Optional: Role ID to mention
-
-# Determine the mention string to use
-if DISCORD_ROLE_ID:
-    DISCORD_MENTION = f"<@&{DISCORD_ROLE_ID}>"  # Proper Discord role mention format
-else:
-    DISCORD_MENTION = "@everyone"  # Default to @everyone if no role specified
 
 # Validate that all required environment variables are set
 if not TELEGRAM_BOT_TOKEN:
@@ -28,6 +23,15 @@ if not DISCORD_BOT_TOKEN:
     raise ValueError("DISCORD_BOT_TOKEN not found in environment variables")
 if not DISCORD_CHANNEL_ID:
     raise ValueError("DISCORD_CHANNEL_ID not found in environment variables")
+
+# Convert DISCORD_CHANNEL_ID to integer after validation
+DISCORD_CHANNEL_ID = int(DISCORD_CHANNEL_ID)
+
+# Determine the mention string to use
+if DISCORD_ROLE_ID:
+    DISCORD_MENTION = f"<@&{DISCORD_ROLE_ID}>"  # Proper Discord role mention format
+else:
+    DISCORD_MENTION = "@everyone"  # Default to @everyone if no role specified
 
 # Discord Bot Setup
 intents = discord.Intents.default()
@@ -124,7 +128,7 @@ async def handle_telegram_message(update: Update, context: ContextTypes.DEFAULT_
                 photo = message.photo[-1]
                 file = await context.bot.get_file(photo.file_id)
                 file_name = f"photo_{photo.file_id}.jpg"
-                file_path = f"/tmp/{file_name}"
+                file_path = os.path.join(tempfile.gettempdir(), file_name)
                 await file.download_to_drive(file_path)
                 print(f"📥 Downloaded photo: {file_name}")
 
@@ -134,7 +138,7 @@ async def handle_telegram_message(update: Update, context: ContextTypes.DEFAULT_
                 video = message.video
                 file = await context.bot.get_file(video.file_id)
                 file_name = video.file_name or f"video_{video.file_id}.mp4"
-                file_path = f"/tmp/{file_name}"
+                file_path = os.path.join(tempfile.gettempdir(), file_name)
                 await file.download_to_drive(file_path)
                 print(f"📥 Downloaded video: {file_name}")
 
@@ -144,7 +148,7 @@ async def handle_telegram_message(update: Update, context: ContextTypes.DEFAULT_
                 document = message.document
                 file = await context.bot.get_file(document.file_id)
                 file_name = document.file_name or f"document_{document.file_id}"
-                file_path = f"/tmp/{file_name}"
+                file_path = os.path.join(tempfile.gettempdir(), file_name)
                 await file.download_to_drive(file_path)
                 print(f"📥 Downloaded document: {file_name}")
 
