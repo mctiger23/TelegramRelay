@@ -13,7 +13,8 @@ load_dotenv()
 # Configuration - Load from environment variables
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
+DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID")
+DISCORD_ROLE_ID = os.getenv("DISCORD_ROLE_ID")  # Optional: Role ID to mention
 
 # Validate that all required environment variables are set
 if not TELEGRAM_BOT_TOKEN:
@@ -48,47 +49,72 @@ async def on_ready():
         print(f'❌ WARNING: Could not find channel with ID {DISCORD_CHANNEL_ID}')
     print(f'✅ Ready to relay messages!')
 
-async def send_to_discord(message_text, username, chat_name=None):
-    """Send message to Discord with @everyone mention"""
-    print(f"🔄 send_to_discord called with: username={username}, chat_name={chat_name}")
+async def send_to_discord(message_text, username, chat_name=None, file_path=None, file_name=None):
+    """Send message to Discord with configurable mention and optional file attachment"""
+    print(f"🔄 send_to_discord called with: username={username}, chat_name={chat_name}, file={file_name}")
     print(f"🔍 Discord bot ready: {discord_bot.is_ready()}")
 
     channel = discord_bot.get_channel(DISCORD_CHANNEL_ID)
 
     if channel:
         if chat_name:
-            content = f"@everyone **[{chat_name}]** {username}: {message_text}"
+            content = f"{DISCORD_MENTION} **[{chat_name}]** {username}: {message_text}" if message_text else f"{DISCORD_MENTION} **[{chat_name}]** {username}"
         else:
-            content = f"@everyone {username}: {message_text}"
+            content = f"{DISCORD_MENTION} {username}: {message_text}" if message_text else f"{DISCORD_MENTION} {username}"
 
         try:
-            await channel.send(content)
-            print(f"📤 Successfully sent to Discord: {content[:80]}...")
+            if file_path:
+                # Send message with file attachment
+                with open(file_path, 'rb') as f:
+                    discord_file = discord.File(f, filename=file_name)
+                    await channel.send(content=content, file=discord_file)
+                print(f"📤 Successfully sent to Discord with file: {file_name}")
+                # Clean up the downloaded file
+                try:
+                    os.remove(file_path)
+                    print(f"🗑️ Cleaned up temporary file: {file_path}")
+                except Exception as e:
+                    print(f"⚠️ Could not delete temp file {file_path}: {e}")
+            else:
+                # Send text-only message
+                await channel.send(content)
+                print(f"📤 Successfully sent to Discord: {content[:80]}...")
         except Exception as e:
             print(f"❌ Error sending to Discord: {e}")
+            # Clean up file if send failed
+            if file_path and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
     else:
         print(f"❌ Channel not found! Check your DISCORD_CHANNEL_ID: {DISCORD_CHANNEL_ID}")
         print(f"🔍 Available channels: {[c.id for c in discord_bot.get_all_channels()]}")
 
 # Telegram Bot Setup
 async def handle_telegram_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle incoming Telegram messages"""
+    """Handle incoming Telegram messages including text, photos, videos, and documents"""
     print(f"🔔 handle_telegram_message triggered!")
     print(f"📋 Update type: {type(update)}")
     print(f"📋 Has message: {update.message is not None}")
 
     if update.message:
+        message = update.message
         print(f"📋 Message details:")
-        print(f"   - Chat type: {update.message.chat.type}")
-        print(f"   - Chat ID: {update.message.chat.id}")
-        print(f"   - Chat title: {update.message.chat.title}")
-        print(f"   - Has text: {update.message.text is not None}")
+        print(f"   - Chat type: {message.chat.type}")
+        print(f"   - Chat ID: {message.chat.id}")
+        print(f"   - Chat title: {message.chat.title}")
+        print(f"   - Has text: {message.text is not None}")
+        print(f"   - Has photo: {message.photo is not None and len(message.photo) > 0 if message.photo else False}")
+        print(f"   - Has video: {message.video is not None}")
+        print(f"   - Has document: {message.document is not None}")
 
-        if update.message.text:
-            message_text = update.message.text
-            user = update.message.from_user
-            username = user.first_name or user.username or "Unknown"
-            chat_name = update.message.chat.title if update.message.chat.title else None
+        user = message.from_user
+        username = user.first_name or user.username or "Unknown"
+        chat_name = message.chat.title if message.chat.title else None
+
+        # Get caption or text
+        message_text = message.caption if message.caption else message.text
 
         file_path = None
         file_name = None
@@ -133,12 +159,22 @@ async def handle_telegram_message(update: Update, context: ContextTypes.DEFAULT_
             else:
                 print(f"⚠️ Message type not supported (might be sticker, audio, etc.)")
                 return
-            print(f"📨 Received from Telegram [{chat_name}] {username}: {message_text[:50]}...")
 
             # Send to Discord
-            await send_to_discord(message_text, username, chat_name)
-        else:
-            print(f"⚠️ Message has no text content")
+            if message_text or file_path:
+                print(f"📨 Received from Telegram [{chat_name}] {username}: {message_text[:50] if message_text else '[Media]'}...")
+                await send_to_discord(message_text or "", username, chat_name, file_path, file_name)
+            else:
+                print(f"⚠️ No content to relay")
+
+        except Exception as e:
+            print(f"❌ Error processing message: {e}")
+            # Clean up file if download succeeded but processing failed
+            if file_path and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
     else:
         print(f"⚠️ Update has no message")
 
