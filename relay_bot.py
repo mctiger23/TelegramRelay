@@ -1,4 +1,5 @@
 import os
+import tempfile
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 import discord
@@ -21,6 +22,15 @@ if not DISCORD_BOT_TOKEN:
     raise ValueError("DISCORD_BOT_TOKEN not found in environment variables")
 if not DISCORD_CHANNEL_ID:
     raise ValueError("DISCORD_CHANNEL_ID not found in environment variables")
+
+# Convert DISCORD_CHANNEL_ID to integer after validation
+DISCORD_CHANNEL_ID = int(DISCORD_CHANNEL_ID)
+
+# Determine the mention string to use
+if DISCORD_ROLE_ID:
+    DISCORD_MENTION = f"<@&{DISCORD_ROLE_ID}>"  # Proper Discord role mention format
+else:
+    DISCORD_MENTION = "@everyone"  # Default to @everyone if no role specified
 
 # Discord Bot Setup
 intents = discord.Intents.default()
@@ -80,6 +90,49 @@ async def handle_telegram_message(update: Update, context: ContextTypes.DEFAULT_
             username = user.first_name or user.username or "Unknown"
             chat_name = update.message.chat.title if update.message.chat.title else None
 
+        file_path = None
+        file_name = None
+
+        # Handle different message types
+        try:
+            # Handle photos
+            if message.photo:
+                print(f"📷 Processing photo message...")
+                # Get the largest photo size
+                photo = message.photo[-1]
+                file = await context.bot.get_file(photo.file_id)
+                file_name = f"photo_{photo.file_id}.jpg"
+                file_path = os.path.join(tempfile.gettempdir(), file_name)
+                await file.download_to_drive(file_path)
+                print(f"📥 Downloaded photo: {file_name}")
+
+            # Handle videos
+            elif message.video:
+                print(f"🎥 Processing video message...")
+                video = message.video
+                file = await context.bot.get_file(video.file_id)
+                file_name = video.file_name or f"video_{video.file_id}.mp4"
+                file_path = os.path.join(tempfile.gettempdir(), file_name)
+                await file.download_to_drive(file_path)
+                print(f"📥 Downloaded video: {file_name}")
+
+            # Handle documents
+            elif message.document:
+                print(f"📄 Processing document message...")
+                document = message.document
+                file = await context.bot.get_file(document.file_id)
+                file_name = document.file_name or f"document_{document.file_id}"
+                file_path = os.path.join(tempfile.gettempdir(), file_name)
+                await file.download_to_drive(file_path)
+                print(f"📥 Downloaded document: {file_name}")
+
+            # Handle text-only messages
+            elif message.text:
+                print(f"💬 Processing text message...")
+
+            else:
+                print(f"⚠️ Message type not supported (might be sticker, audio, etc.)")
+                return
             print(f"📨 Received from Telegram [{chat_name}] {username}: {message_text[:50]}...")
 
             # Send to Discord
